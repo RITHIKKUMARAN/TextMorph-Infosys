@@ -109,7 +109,6 @@ class ProfileUpdateRequest(BaseModel):
 class ClearHistoryRequest(BaseModel):
     username: str
 
-# Helper functions
 def detect_content_type(text: str) -> str:
     """Detect content type from text"""
     text_lower = text.lower()
@@ -152,7 +151,9 @@ def generate_prompt(operation: str, text: str, language: str, tone: str, adaptat
         Text to summarize:
         {text}
         
-        Provide a clear, well-structured summary."""
+        Provide a clear, well-structured summary.Your response MUST be the summarized text ONLY.
+        Do not include any other words, explanations, or formatting.
+        Do not say "Here is the summary:" or any other conversational phrase."""
         
     elif operation == "paraphrase":
         prompt = f"""Paraphrase the following text in {language} with a {tone.lower()} tone.
@@ -166,7 +167,9 @@ def generate_prompt(operation: str, text: str, language: str, tone: str, adaptat
         Text to paraphrase:
         {text}
         
-        Provide a paraphrased version."""
+        Provide a paraphrased version.Your response MUST be the paraphrased text ONLY.
+        Do not include any other words, explanations, or formatting.
+        Do not say "Here is the paraphrased version:" or any other conversational phrase."""
         
     elif operation == "translate_summarize":
         prompt = f"""Translate and summarize the following text to {language} with a {tone.lower()} tone.
@@ -180,7 +183,14 @@ def generate_prompt(operation: str, text: str, language: str, tone: str, adaptat
         Text:
         {text}
         
-        Provide the translated summary."""
+        Provide the translated summary.Your response MUST be the translated text, followed by two newlines, followed by the summarized text.
+        
+        Example of the required output format:
+        [The full translated text goes here]
+        
+        [The abstractive summary goes here]
+        
+        Do not include ANY other words, explanations, titles, or formatting (like "1. Translation:")."""
     
     else:
         prompt = f"Process the following text: {text}"
