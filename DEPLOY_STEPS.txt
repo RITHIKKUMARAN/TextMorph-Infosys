@@ -1,0 +1,97 @@
+DEPLOYMENT STEPS FOR TEXTMORPH APP
+===================================
+
+BACKEND DEPLOYMENT (Railway or Render)
+--------------------------------------
+
+1. Push your code to GitHub repository
+
+2. Go to Railway.app (or Render.com) and create new project
+
+3. Connect your GitHub repository
+
+4. Set Root Directory to: backend
+
+5. Add Environment Variables:
+   - GEMINI_API_KEY = your_gemini_api_key_here
+   - CORS_ORIGINS = https://your-frontend.vercel.app
+   - PORT = (auto-set by platform, don't change)
+
+6. Build Command: pip install -r requirements.txt
+
+7. Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+8. Deploy and copy the backend URL (e.g., https://your-app.railway.app)
+
+
+FRONTEND DEPLOYMENT (Vercel)
+----------------------------
+
+1. Go to vercel.com and sign up/login
+
+2. Click "Add New Project"
+
+3. Import your GitHub repository
+
+4. Framework Preset: Vite
+
+5. Root Directory: . (root, not backend)
+
+6. Build Command: npm run build
+
+7. Output Directory: dist
+
+8. Add Environment Variable:
+   - VITE_API_URL = https://your-backend.railway.app
+   (Use the backend URL from step 8 above)
+
+9. Deploy
+
+10. Copy your frontend URL (e.g., https://your-app.vercel.app)
+
+
+UPDATE BACKEND CORS
+-------------------
+
+1. Go back to Railway/Render backend settings
+
+2. Update CORS_ORIGINS environment variable to:
+   https://your-frontend.vercel.app
+
+3. Redeploy backend
+
+
+REQUIRED API KEYS
+-----------------
+
+1. GEMINI_API_KEY
+   - Get from: https://makersuite.google.com/app/apikey
+   - Or: https://aistudio.google.com/app/apikey
+   - Add to backend environment variables
+
+2. No other API keys needed (Google Speech Recognition is free)
+
+
+TESTING
+-------
+
+1. Visit your Vercel frontend URL
+
+2. Try login/register
+
+3. Test text processing
+
+4. Test voice recording (requires microphone permission)
+
+5. Check browser console for any errors
+
+
+NOTES
+-----
+
+- FFmpeg is needed for voice transcription (included in Docker, but for Railway/Render you may need to add it)
+- For Railway: FFmpeg should work automatically
+- For Render: May need to add buildpack or use Docker
+- Voice transcription uses Google Speech Recognition (free, no API key needed)
+- All other features work without additional setup
+

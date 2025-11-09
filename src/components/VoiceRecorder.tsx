@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { Mic, Square, Check, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { transcribeAudio } from '../api/api';
+import toast from 'react-hot-toast';
 
 interface VoiceRecorderProps {
   onTranscription: (text: string) => void;
@@ -10,18 +12,106 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [wordCount, setWordCount] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await transcribeAudioBlob(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      setTranscription('');
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      toast.success('Recording started');
+    } catch (error: any) {
+      console.error('Error starting recording:', error);
+      toast.error('Failed to access microphone. Please check permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  };
+
+  const transcribeAudioBlob = async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    try {
+      const response = await transcribeAudio(audioBlob);
+      const transcribedText = response.text;
+      setTranscription(transcribedText);
+      setWordCount(transcribedText.split(/\s+/).filter(Boolean).length);
+      toast.success('Transcription completed!');
+    } catch (error: any) {
+      console.error('Transcription error:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to transcribe audio';
+      toast.error(errorMessage);
+      setTranscription('');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   const toggleRecording = () => {
     if (isRecording) {
-      setIsRecording(false);
-      const mockTranscription = 'This is a mock transcription. In production, this would use the Web Speech API or a backend service.';
-      setTranscription(mockTranscription);
-      setWordCount(mockTranscription.split(/\s+/).filter(Boolean).length);
+      stopRecording();
     } else {
-      setIsRecording(true);
-      setTranscription('');
-      setWordCount(0);
+      startRecording();
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleUseText = () => {
@@ -68,26 +158,46 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex gap-2"
+            className="flex flex-col items-center gap-4"
           >
-            {[...Array(5)].map((_, i) => (
-              <motion.div
-                key={i}
-                animate={{
-                  scaleY: [1, 2, 1],
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 0.8,
-                  delay: i * 0.1,
-                }}
-                className="w-2 h-8 bg-gradient-to-t from-violet-500 to-purple-500 rounded-full"
-              />
-            ))}
+            <div className="flex gap-2">
+              {[...Array(5)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  animate={{
+                    scaleY: [1, 2, 1],
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 0.8,
+                    delay: i * 0.1,
+                  }}
+                  className="w-2 h-8 bg-gradient-to-t from-violet-500 to-purple-500 rounded-full"
+                />
+              ))}
+            </div>
+            <p className="text-violet-300 font-semibold">{formatTime(recordingTime)}</p>
+            <p className="text-sm text-slate-400">Click the button again to stop recording</p>
           </motion.div>
         )}
 
-        {transcription && (
+        {isTranscribing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center gap-3"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full"
+            />
+            <p className="text-violet-300 font-semibold">Transcribing audio...</p>
+            <p className="text-sm text-slate-400">Please wait</p>
+          </motion.div>
+        )}
+
+        {transcription && !isTranscribing && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

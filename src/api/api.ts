@@ -57,6 +57,18 @@ export const logout = async () => {
   return response.data;
 };
 
+// Speech-to-Text API
+export const transcribeAudio = async (audioBlob: Blob) => {
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'recording.webm');
+  const response = await api.post('/api/transcribe', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 // Text Extraction APIs
 export const extractPDF = async (file: File) => {
   const formData = new FormData();

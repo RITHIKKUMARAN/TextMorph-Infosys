@@ -16,16 +16,24 @@ from fpdf import FPDF
 import markdown
 from difflib import SequenceMatcher
 import tempfile
+import speech_recognition as sr
+from pydub import AudioSegment
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(title="TextMorph API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware - configurable for production
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    cors_origins = [origin.strip() for origin in cors_origins_env.split(",")]
+else:
+    cors_origins = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -358,6 +366,92 @@ async def text_to_speech(request: TextToSpeechRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
 
+# Speech-to-text transcription endpoint
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """
+    Transcribe audio file to text using SpeechRecognition
+    Accepts: webm, wav, mp3, m4a, ogg, flac
+    """
+    try:
+        # Read audio file
+        audio_data = await file.read()
+        
+        # Get file extension
+        file_ext = 'webm'
+        if file.filename and '.' in file.filename:
+            file_ext = file.filename.split('.')[-1]
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_ext}") as temp_audio:
+            temp_audio.write(audio_data)
+            temp_audio_path = temp_audio.name
+        
+        try:
+            # Check if file is already WAV format
+            if file_ext.lower() == 'wav':
+                wav_path = temp_audio_path
+            else:
+                # Convert audio to WAV format using pydub
+                try:
+                    audio = AudioSegment.from_file(temp_audio_path)
+                    wav_path = temp_audio_path.rsplit('.', 1)[0] + '.wav'
+                    audio.export(wav_path, format="wav")
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "ffmpeg" in error_msg or "winerror 2" in error_msg or "cannot find the file" in error_msg:
+                        raise HTTPException(
+                            status_code=500,
+                            detail="FFmpeg is required for audio conversion. Install FFmpeg and add to PATH. Windows: choco install ffmpeg"
+                        )
+                    raise
+            
+            # Initialize recognizer
+            recognizer = sr.Recognizer()
+            
+            # Load and process audio file
+            with sr.AudioFile(wav_path) as source:
+                recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                audio_data = recognizer.record(source)
+            
+            # Transcribe using Google Speech Recognition
+            try:
+                text = recognizer.recognize_google(audio_data)
+            except sr.UnknownValueError:
+                raise HTTPException(status_code=400, detail="Could not understand audio. Please speak more clearly.")
+            except sr.RequestError as e:
+                raise HTTPException(status_code=503, detail=f"Speech recognition service unavailable: {str(e)}")
+            
+            # Clean up temporary files
+            try:
+                if temp_audio_path != wav_path:
+                    os.unlink(temp_audio_path)
+                if os.path.exists(wav_path) and wav_path != temp_audio_path:
+                    os.unlink(wav_path)
+            except:
+                pass
+            
+            return {"text": text}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Clean up on error
+            try:
+                if os.path.exists(temp_audio_path):
+                    os.unlink(temp_audio_path)
+                wav_path_check = temp_audio_path.rsplit('.', 1)[0] + '.wav'
+                if os.path.exists(wav_path_check):
+                    os.unlink(wav_path_check)
+            except:
+                pass
+            raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error transcribing audio: {str(e)}")
+
 # Export endpoints
 @app.post("/api/export")
 async def export_text(request: ExportRequest):
@@ -519,5 +613,7 @@ async def update_profile(request: ProfileUpdateRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host=host, port=port)
 
