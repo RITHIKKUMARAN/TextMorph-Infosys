@@ -172,25 +172,23 @@ def generate_prompt(operation: str, text: str, language: str, tone: str, adaptat
         Do not say "Here is the paraphrased version:" or any other conversational phrase."""
         
     elif operation == "translate_summarize":
-        prompt = f"""Translate and summarize the following text to {language} with a {tone.lower()} tone.
+        prompt = f"""Task: Translate and summarize the following text based on the given rules.
         
-        Requirements:
-        - First translate to {language}
-        - Then summarize {depth_level.lower()}
-        - Summary type: {summary_type}
-        - Readability: {readability_level}
+        Rules:
+        1. Translate the text into {language}.
+        2. Create an abstractive summary of the translated text.
+        3. The final summary MUST be in {language}.
+        4. The summary must have a {tone.lower()} tone and a {readability_level} readability.
+        5. The summary depth should be {depth_level.lower()}.
         
-        Text:
+        Text to process:
         {text}
         
-        Provide the translated summary.Your response MUST be the translated text, followed by two newlines, followed by the summarized text.
-        
-        Example of the required output format:
-        [The full translated text goes here]
-        
-        [The abstractive summary goes here]
-        
-        Do not include ANY other words, explanations, titles, or formatting (like "1. Translation:")."""
+        Your response MUST be the translated and summarized text ONLY.
+        Do not include the full translation.
+        Do not include any other words, explanations, titles, or formatting.
+        Do not say "Here is the translated summary:" or any other conversational phrase.
+        """
     
     else:
         prompt = f"Process the following text: {text}"
