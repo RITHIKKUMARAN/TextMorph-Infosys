@@ -41,6 +41,17 @@
 
 **TextMorph** is a comprehensive, enterprise-grade text processing suite that revolutionizes how you interact with text content. Leveraging Google's cutting-edge Gemini API and built with React and TypeScript, it offers advanced summarization, semantic comparison, multilingual capabilities, and personalized AI profiles.
 
+<div align="center">
+
+<a href="https://rithik-text-morph.vercel.app/" target="_blank">
+<img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=28&duration=3000&pause=1000&color=FF6B9D&background=FFFFFF00&center=true&vCenter=true&repeat=true&width=800&lines=🚀+Experience+TextMorph+Live!;Transform+Your+Text+with+AI;Click+to+Try+the+App+Now!" alt="Live Demo" />
+</a>
+
+[![Open Live Demo](https://img.shields.io/badge/🌟_OPEN_LIVE_DEMO-Click_Here-00D9FF?style=for-the-badge&logo=vercel&logoColor=white&labelColor=6366F1)](https://rithik-text-morph.vercel.app/)
+
+</div>
+
+
 ## Why TextMorph?
 
 <table>
